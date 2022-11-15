@@ -3,35 +3,36 @@ import serial.tools.list_ports
 from tkinter import *
 from tkinter import ttk
 from threading import Thread
+import asyncio   
 
-def check_serial_output(port):
-    while not type(port) and port != None and port.isOpen():
-        if port.in_waiting > 0:
-            line = port.readline().decode("utf-8").strip()
-            output_console.insert(END, line)
+async def main():
+    async def check_serial_output(port):
+        while not type(port) and port != None and port.isOpen():
+            if port.in_waiting > 0:
+                line = port.readline().decode("utf-8").strip()
+                output_console.insert(END, line)
 
-def attempt_port_selection(index, value, op):
-    if option_select.get() in port_names:
-        try:
-            print("Attempting connection...")
-            port = serial.Serial(option_select.get())
-            print("Connection completed!")
-            warning_label.grid_forget()
-            missing_label.grid_forget()
-            connected_label.grid(column=0, columnspan=2, row=1)
-            return port    
-        except:
+    async def attempt_port_selection(index, value, op):
+        if option_select.get() in port_names:
+            try:
+                print("Attempting connection...")
+                port = serial.Serial(option_select.get())
+                print("Connection completed!")
+                warning_label.grid_forget()
+                missing_label.grid_forget()
+                connected_label.grid(column=0, columnspan=2, row=1)
+                return port    
+            except:
+                connected_label.grid_forget()
+                missing_label.grid_forget()
+                warning_label.grid(column=0, columnspan=2, row=1)
+                return None
+        else:
             connected_label.grid_forget()
             missing_label.grid_forget()
             warning_label.grid(column=0, columnspan=2, row=1)
-            return None
-    else:
-        connected_label.grid_forget()
-        missing_label.grid_forget()
-        warning_label.grid(column=0, columnspan=2, row=1)
-        return None    
+            return None 
 
-if __name__ == "__main__":
     # fetching all active ports
     port_names = list(map(lambda port: port.name, serial.tools.list_ports.comports()))
 
@@ -46,7 +47,7 @@ if __name__ == "__main__":
 
     # creating a listener to see when the contents of the combobox change
     selected = StringVar()
-    active_port = selected.trace_add('write', attempt_port_selection)
+    active_port = await selected.trace_add('write', attempt_port_selection)
 
     option_select = ttk.Combobox(frm, textvar=selected, values=port_names)
     option_select.grid(column=1, row=0)
@@ -64,3 +65,6 @@ if __name__ == "__main__":
     output_thread.join()
 
     root.mainloop()
+
+if __name__ == "__main__":
+    asyncio.run(main())
