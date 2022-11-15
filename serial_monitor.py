@@ -3,16 +3,15 @@ import serial.tools.list_ports
 from tkinter import *
 from tkinter import ttk
 from threading import Thread
-import asyncio   
 
-async def main():
-    async def check_serial_output(port):
+def main():
+    def check_serial_output(port):
         while not type(port) and port != None and port.isOpen():
             if port.in_waiting > 0:
                 line = port.readline().decode("utf-8").strip()
                 output_console.insert(END, line)
 
-    async def attempt_port_selection(index, value, op):
+    def attempt_port_selection(index, value, op):
         if option_select.get() in port_names:
             try:
                 print("Attempting connection...")
@@ -45,9 +44,16 @@ async def main():
     label = ttk.Label(frm, text="Please select a port:")
     label.grid(column=0, row=0)
 
+    global active_port
+    active_port = None
+    def save_port(index, value, op):
+        global active_port
+        active_port = attempt_port_selection(index, value, op)
+        return active_port
+
     # creating a listener to see when the contents of the combobox change
     selected = StringVar()
-    active_port = await selected.trace_add('write', attempt_port_selection)
+    selected.trace_add('write', save_port)
 
     option_select = ttk.Combobox(frm, textvar=selected, values=port_names)
     option_select.grid(column=1, row=0)
@@ -67,4 +73,4 @@ async def main():
     root.mainloop()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
