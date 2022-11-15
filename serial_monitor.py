@@ -2,19 +2,32 @@ import serial
 import serial.tools.list_ports
 from tkinter import *
 from tkinter import ttk
-from multiprocessing import Process
+from multiprocessing import Process, Lock
 
-def main():
-    def check_serial_output():
-        while True:
+global port_lock 
+port_lock = Lock()
+
+global active_port
+active_port = None
+
+lines = []
+
+def check_serial_output():
+    while True:
+        port_lock.acquire()
+        try:
             global active_port
             print("BACK: " + str(active_port))
             if active_port != None and active_port.isOpen():
                 if active_port.in_waiting > 0:
                     line = active_port.readline().decode("utf-8").strip()
                     print(line)
-                    output_console.insert(END, line)
+                    lines.append(line)
+                    # output_console.insert(END, line)
+        finally:
+            port_lock.release()
 
+def main():
     def attempt_port_selection(*_):
         if option_select.get() in port_names:
             try:
@@ -48,13 +61,16 @@ def main():
     label = ttk.Label(frm, text="Please select a port:")
     label.grid(column=0, row=0)
 
-    global active_port
-    active_port = None
+    # used to save the port from attempt_port_selection before callback is completed
     def save_port(*_):
-        global active_port
-        active_port = attempt_port_selection(*_)
-        print("GUI: " + str(active_port))
-        return active_port
+        port_lock.acquire()
+        try:
+            global active_port
+            active_port = attempt_port_selection(*_)
+            print("GUI: " + str(active_port))
+            return active_port
+        finally:
+            port_lock.release()
 
     # creating a listener to see when the contents of the combobox change
     selected = StringVar()
@@ -71,10 +87,10 @@ def main():
     output_console = Text(frm, height=20, state=DISABLED, xscrollcommand=True, yscrollcommand=True, padx=10, pady=10)
     output_console.grid(column=0, columnspan=2, row=2)
 
-    interface_proc = Process(target=root.mainloop, name="interface_proc")
-    interface_proc.start()
-    scanning_proc = Process(target=check_serial_output, name="scanning_proc", daemon=True)
+    scanning_proc = Process(target=check_serial_output, name="scanning_proc")
     scanning_proc.start()
+    # tkinter has to run on main thread
+    root.mainloop()
 
 if __name__ == "__main__":
     main()
