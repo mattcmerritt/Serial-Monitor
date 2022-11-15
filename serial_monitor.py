@@ -2,16 +2,20 @@ import serial
 import serial.tools.list_ports
 from tkinter import *
 from tkinter import ttk
-from threading import Thread
+from multiprocessing import Process
 
 def main():
-    def check_serial_output(port):
-        while not type(port) and port != None and port.isOpen():
-            if port.in_waiting > 0:
-                line = port.readline().decode("utf-8").strip()
-                output_console.insert(END, line)
+    def check_serial_output():
+        while True:
+            global active_port
+            print("BACK: " + str(active_port))
+            if active_port != None and active_port.isOpen():
+                if active_port.in_waiting > 0:
+                    line = active_port.readline().decode("utf-8").strip()
+                    print(line)
+                    output_console.insert(END, line)
 
-    def attempt_port_selection(index, value, op):
+    def attempt_port_selection(*_):
         if option_select.get() in port_names:
             try:
                 print("Attempting connection...")
@@ -46,9 +50,10 @@ def main():
 
     global active_port
     active_port = None
-    def save_port(index, value, op):
+    def save_port(*_):
         global active_port
-        active_port = attempt_port_selection(index, value, op)
+        active_port = attempt_port_selection(*_)
+        print("GUI: " + str(active_port))
         return active_port
 
     # creating a listener to see when the contents of the combobox change
@@ -66,11 +71,10 @@ def main():
     output_console = Text(frm, height=20, state=DISABLED, xscrollcommand=True, yscrollcommand=True, padx=10, pady=10)
     output_console.grid(column=0, columnspan=2, row=2)
 
-    output_thread = Thread(target=check_serial_output(active_port))
-    output_thread.start()
-    output_thread.join()
-
-    root.mainloop()
+    interface_proc = Process(target=root.mainloop, name="interface_proc")
+    interface_proc.start()
+    scanning_proc = Process(target=check_serial_output, name="scanning_proc", daemon=True)
+    scanning_proc.start()
 
 if __name__ == "__main__":
     main()
